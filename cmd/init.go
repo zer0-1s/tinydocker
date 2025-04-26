@@ -20,10 +20,15 @@ var initCommand = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// 当前挂载点及其所有子挂载点都设置为私有模式，采用0会导致宿主机的/proc被破坏
-		//if err := syscall.Mount("proc", "/proc", "proc", 0, ""); err != nil {
-		if err := syscall.Mount("proc", "/proc", "proc", syscall.MS_PRIVATE|syscall.MS_REC, ""); err != nil {
-		fmt.Println("Mount proc error:", err)
+		// 1. 先把整个挂载空间设置为私有
+		if err := syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, ""); err != nil {
+			fmt.Println("Set mount propagation private failed:", err)
+			os.Exit(1)
+		}
+
+		// 2. 挂载新的 proc
+		if err := syscall.Mount("proc", "/proc", "proc", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
+			fmt.Println("Mount proc error:", err)
 			os.Exit(1)
 		}
 

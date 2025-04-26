@@ -41,7 +41,7 @@ var runCommand = &cobra.Command{
 			if err := c.Start(); err != nil {
 				fmt.Println("Run failed:", err)
 				return
-			}
+			}	
 			c.Wait()
 		}
 	},	
@@ -60,9 +60,10 @@ func NewParentProcess(tty bool, args []string) *exec.Cmd {
 		Cloneflags: 
 			syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
-			syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWNS 	| // 创建新的挂载namespace
 			syscall.CLONE_NEWNET |
 			syscall.CLONE_NEWIPC,
+		Unshareflags: syscall.CLONE_NEWNS,  // 确保执行时 unshare 成新的 mount namespace
 		Setsid:  true,
 		Setctty: tty,
 	}
