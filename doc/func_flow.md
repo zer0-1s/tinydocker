@@ -47,3 +47,16 @@ cmd  doc  go.mod  go.sum  main.go  Makefile  tinydocker
 - Namespace 隔离：通过在 fork 时指定对应 Cloneflags+ Unshareflags来实现创建新 Namespace
 - proc 隔离：通过重新 mount /proc 文件系统来实现进程信息隔离
 - execve 系统调用：使用指定进程覆盖 init 进程
+
+
+
+```bash
+sudo ./tinydocker run --memory 256m --cpu-cfs-quota 20000 --cpu-share 512 --tty --interactive /bin/bash
+```
+
+```
+root@ubuntu:/sys/fs/cgroup/cpu,cpuacct# ls
+cgroup.clone_children  cpuacct.stat       cpuacct.usage_percpu       cpuacct.usage_sys   cpu.cfs_period_us  cpu.shares  notify_on_release  tasks
+cgroup.procs           cpuacct.usage      cpuacct.usage_percpu_sys   cpuacct.usage_user  cpu.cfs_quota_us   cpu.stat    release_agent      tinydocker
+cgroup.sane_behavior   cpuacct.usage_all  cpuacct.usage_percpu_user  cpu.cfs_burst_us    cpu.idle           init.scope  system.slice       user.slice
+```

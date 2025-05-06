@@ -5,14 +5,19 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"io"
 	"strings"
-	"github.com/creack/pty"
 	"github.com/spf13/cobra"
+	"tinydocker/cgroups/subsystems"
+	"tinydocker/cgroups"
+	"github.com/creack/pty"
+	"io"
+	
 )
 
 var tty bool
 var interactive bool
+var res subsystems.ResourceConfig // 定义资源配置变量
+
 
 var runCommand = &cobra.Command{
 	Use:   "run",
@@ -32,6 +37,12 @@ var runCommand = &cobra.Command{
 				return
 			}
 			defer func() { _ = ptmx.Close() }()
+				// 设置资源限制
+			cgroupManager := cgroups.NewCgroupManager("tinydocker")
+			defer cgroupManager.Destroy()
+			_ = cgroupManager.Set(&res)
+			_ = cgroupManager.Apply(parent.Process.Pid, &res)
+			
 			sendInitCommand(args, writePipe)
 
 			go func() { _, _ = io.Copy(ptmx, os.Stdin) }()
@@ -54,6 +65,10 @@ var runCommand = &cobra.Command{
 func init() {
 	runCommand.Flags().BoolVarP(&tty, "tty", "t", false, "Enable TTY")
 	runCommand.Flags().BoolVarP(&interactive, "interactive", "i", false, "Enable interactive mode")
+	runCommand.Flags().StringVar(&res.MemoryLimit, "memory", "0", "Memory limit (e.g., 128m, 1g)")
+	runCommand.Flags().IntVar(&res.CpuCfsQuota, "cpu-cfs-quota", 0, "CPU CFS quota (in microseconds)")
+	runCommand.Flags().StringVar(&res.CpuShare, "cpu-share", "0", "CPU shares (relative weight)")
+	runCommand.Flags().StringVar(&res.CpuSet, "cpuset", "", "CPUs in which to allow execution (e.g., 0,1,2)")
 }
 
 func NewParentProcess(tty bool) (*exec.Cmd,*os.File) {
@@ -74,6 +89,15 @@ func NewParentProcess(tty bool) (*exec.Cmd,*os.File) {
 		Setsid:  true,
 		Setctty: tty,
 	}
+	// if tty {
+    //     ptmx, err := pty.Start(cmd)
+    //     if err != nil {
+    //         fmt.Println("pty.Start error:", err)
+    //         return nil, nil
+    //     }
+    //     // 直接用 ptmx 作为 writePipe 就行，主进程再用 writePipe 写命令
+    //     return cmd, ptmx
+    // }
 	// readPipe 是子进程的额外文件用于读取参数
 	// cmd 执行时就会外带着这个文件句柄去创建子进程。
 	cmd.ExtraFiles = []*os.File{readPipe} // 将管道的写入端传递给子进程
